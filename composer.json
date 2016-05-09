@@ -1,0 +1,25 @@
+{
+	"name": "hypejunction/roles_dashboard",
+	"type": "elgg-plugin",
+	"description": "Role-specific dashboards",
+	"homepage": "http://hypejunction.com",
+	"minimum-stability": "stable",
+	"keywords": [
+		"elgg", "plugin", "roles", "ui"
+	],
+	"license": "GPL-2.0",
+	"authors": [
+		{
+			"name": "Ismayil Khayredinov",
+			"email": "ismayil@hypejunction.com"
+		}
+	],
+	"require": {
+		"php": ">=5.4",
+		"composer/installers": "~1.0",
+		"arckinteractive/roles": "~2.0",
+		"arckinteractive/roles_dashboard": "~1.0",
+		"coldtrick/widget_manager": "~5.0"
+	}
+}
+

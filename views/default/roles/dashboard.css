@@ -1,0 +1,7 @@
+#widget-manager-multi-dashboard-tabs {
+    position: relative;
+    top: auto;
+}
+.layout-widgets-dashboard .elgg-widget-add-control {
+    margin-top: -32px;
+}
