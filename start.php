@@ -11,6 +11,7 @@
 define('ROLES_DASHBOARD_NUM_COLUMNS', 3);
 
 elgg_register_event_handler('init', 'system', 'roles_dashboard_init');
+elgg_register_event_handler('init', 'system', 'roles_dashboard_update_widget_definitions', 1000);
 
 /**
  * Init plugin
@@ -40,6 +41,33 @@ function roles_dashboard_init() {
 
 	// Pinning
 	elgg_register_plugin_hook_handler('register', 'menu:widget', 'roles_dashboard_widget_menu_setup');
+}
+
+/**
+ * Make widgets available in roles dashboards
+ * @return void
+ */
+function roles_dashboard_update_widget_definitions() {
+
+	$widget_types = elgg_get_widget_types('all', true);
+	foreach ($widget_types as $handler => $options) {
+		$context = $options->context;
+		$context[] = 'dashboard';
+		$context = array_unique($context);
+		elgg_register_widget_type($handler, $options->name, $options->description, $context, $options->multiple);
+	}
+
+	$roles = roles_get_all_selectable_roles();
+
+	$widget_types = elgg_get_widget_types('dashboard', true);
+	foreach ($widget_types as $handler => $options) {
+		$context = $options->context;
+		foreach ($roles as $role) {
+			$context[] = "role::{$role->name}";
+		}
+		$context = array_unique($context);
+		elgg_register_widget_type($handler, $options->name, $options->description, $context, $options->multiple);
+	}
 }
 
 /**
