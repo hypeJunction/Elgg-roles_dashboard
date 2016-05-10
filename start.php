@@ -12,6 +12,7 @@ define('ROLES_DASHBOARD_NUM_COLUMNS', 3);
 
 elgg_register_event_handler('init', 'system', 'roles_dashboard_init');
 elgg_register_event_handler('init', 'system', 'roles_dashboard_update_widget_definitions', 1000);
+elgg_register_event_handler('upgrade', 'system', 'roles_dashboard_upgrade');
 
 /**
  * Init plugin
@@ -338,4 +339,90 @@ function roles_dashboard_widget_menu_setup($hook, $type, $return, $params) {
 	$return[] = $item;
 
 	return $return;
+}
+
+/**
+ * Populate role dashboards for previously defined roles
+ * @return void
+ */
+function roles_dashboard_upgrade() {
+	if (!elgg_is_admin_logged_in()) {
+		return;
+	}
+
+	$dbprefix = elgg_get_config('dbprefix');
+	$roles = roles_get_all_selectable_roles();
+	if (empty($roles)) {
+		return;
+	}
+	$role_guids = array();
+	foreach ($roles as $role) {
+		$role_guids[] = (int) $role->guid;
+	}
+	$role_guids_in = implode(',', $role_guids);
+
+	$subtype_id = (int) get_subtype_id('object', \MultiDashboard::SUBTYPE);
+
+	// Grab users that have been assigned a role but that role does not have a dashboard
+	$users = new \ElggBatch('elgg_get_entities', array(
+		'types' => 'user',
+		'joins' => array(
+			"JOIN {$dbprefix}entity_relationships er ON e.guid = er.guid_one
+				AND er.relationship = 'has_role'
+				AND er.guid_two IN ($role_guids_in)",
+		),
+		'wheres' => array(
+			"NOT EXISTS (SELECT 1 FROM {$dbprefix}entities e2
+				JOIN {$dbprefix}entity_relationships er2 ON er2.guid_one = e2.guid
+				WHERE e2.owner_guid = e.guid
+					AND e2.subtype = $subtype_id
+					AND er2.relationship = 'dashboard_for'
+					AND er2.guid_two = er.guid_two)"
+		),
+	));
+				
+	$users->setIncrementOffset(false);
+
+	$fixed = $error = 0;
+	foreach ($users as $user) {
+		foreach ($roles as $role) {
+			$relationship = check_entity_relationship($user->guid, 'has_role', $role->guid);
+			if (!$relationship) {
+				continue;
+			}
+			// check if role-specific dashboard exists
+			$dashboards = elgg_get_entities_from_relationship(array(
+				'types' => 'object',
+				'subtypes' => MultiDashboard::SUBTYPE,
+				'owner_guid' => $user->guid,
+				'relationship' => 'dashboard_for',
+				'relationship_guid' => $role->guid,
+				'inverse_relationship' => true,
+				'count' => true,
+			));
+
+			if (!$dashboards) {
+				continue;
+			}
+			$dashboard = new ElggObject();
+			$dashboard->subtype = MultiDashboard::SUBTYPE; // not using MultiDashboard instantiation due to problems with save() overwriting values
+			$dashboard->owner_guid = $user->guid;
+			$dashboard->container_guid = $user->guid;
+			$dashboard->title = $role->getDisplayName();
+			$dashboard->name = $role->name;
+			$dashboard->roles_context = "role::{$role->name}";
+			$dashboard->dashboard_type = 'widgets';
+			$dashboard->num_columns = ROLES_DASHBOARD_NUM_COLUMNS;
+			if ($dashboard->save()) {
+				add_entity_relationship($dashboard->guid, 'dashboard_for', $role->guid);
+				$fixed++;
+			} else {
+				$error++;
+			}
+		}
+	}
+
+	if ($fixed) {
+		system_message("$fixed missing dashboard role tabs have been created");
+	}
 }

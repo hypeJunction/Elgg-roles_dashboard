@@ -15,3 +15,4 @@ Role-specific widget dashboards
 ## Notes
 
  * To customize the title of the tab, add `"dashboard:<role_name>"` key to your translations
+ * Run `upgrade.php` to populate missing dashboard tabs (e.g. for roles assigned before the plugin was activated)
