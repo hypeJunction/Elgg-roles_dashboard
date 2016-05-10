@@ -38,6 +38,8 @@ function roles_dashboard_init() {
 	// CSS
 	elgg_extend_view('css/elgg', 'roles/dashboard.css');
 
+	// Pinning
+	elgg_register_plugin_hook_handler('register', 'menu:widget', 'roles_dashboard_widget_menu_setup');
 }
 
 /**
@@ -100,7 +102,7 @@ function roles_dashboard_create_relationship($event, $type, $relationship) {
  * @return void
  */
 function roles_dashboard_delete_relationship($event, $type, $relationship) {
-	
+
 	if ($relationship->relationship !== 'has_role') {
 		return;
 	}
@@ -266,4 +268,46 @@ function roles_dashboard_object_permissions_check($hook, $type, $return, $params
 	if ($entity->getSubtype() == 'widget' && strpos($context, 'role::') === 0) {
 		return $user && $user->isAdmin();
 	}
+}
+
+/**
+ * Allow pinning in role specific dashboards
+ *
+ * @param string         $hook   "register"
+ * @param string         $type   "menu:widget"
+ * @param ElggMenuItem[] $return Menu
+ * @param array          $params Hook params
+ * @return array
+ */
+function roles_dashboard_widget_menu_setup($hook, $type, $return, $params) {
+
+	$widget = elgg_extract('entity', $params);
+
+	if (!elgg_is_admin_logged_in()) {
+		return;
+	}
+
+	if (!elgg_in_context('default_widgets')) {
+		return;
+	}
+
+	if (!$widget->fixed_parent_guid || strpos($widget->context, 'role::') !== 0) {
+		return;
+	}
+
+	$class = "widget-manager-fix";
+	if ($widget->fixed) {
+		$class .= " fixed";
+	}
+
+	$item = ElggMenuItem::factory(array(
+				'name' => "fix",
+				'text' => elgg_view_icon('widget-manager-push-pin'),
+				'title' => elgg_echo('widget_manager:widgets:fix'),
+				'href' => "#$widget->guid",
+				'link_class' => $class
+	));
+	$return[] = $item;
+
+	return $return;
 }
