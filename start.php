@@ -44,7 +44,11 @@ function roles_dashboard_init() {
 	elgg_extend_view('css/elgg', 'roles/dashboard.css');
 
 	// Pinning
+	// Also see roles_dashboard/views/default/widget_manager/multi_dasbhoard/navigation, which is used by this plugin
+	// instead of the pagesetup event as done in widget manager to update fixed widgets
 	elgg_register_plugin_hook_handler('register', 'menu:widget', 'roles_dashboard_widget_menu_setup');
+	// Widget manager doesn't remove fixed widgets that have been deleted
+	elgg_register_event_handler('delete', 'object', 'roles_dashboard_remove_fixed_widgets');
 }
 
 /**
@@ -398,10 +402,10 @@ function roles_dashboard_upgrade() {
 	}
 	$role_guids_in = implode(',', $role_guids);
 
-	$subtype_id = (int) get_subtype_id('object', \MultiDashboard::SUBTYPE);
+	$subtype_id = (int) get_subtype_id('object', MultiDashboard::SUBTYPE);
 
 	// Grab users that have been assigned a role but that role does not have a dashboard
-	$users = new \ElggBatch('elgg_get_entities', array(
+	$users = new ElggBatch('elgg_get_entities', array(
 		'types' => 'user',
 		'joins' => array(
 			"JOIN {$dbprefix}entity_relationships er ON e.guid = er.guid_one
@@ -416,6 +420,7 @@ function roles_dashboard_upgrade() {
 					AND er2.relationship = 'dashboard_for'
 					AND er2.guid_two = er.guid_two)"
 		),
+		'limit' => 0,
 	));
 
 	$users->setIncrementOffset(false);
@@ -461,5 +466,43 @@ function roles_dashboard_upgrade() {
 
 	if ($fixed) {
 		system_message("$fixed missing dashboard role tabs have been created");
+	}
+}
+
+/**
+ * Remove fixed widgets from dashboard when parent widget is deleted from
+ * default widgets editor
+ * 
+ * @param string     $event  "delete"
+ * @param string     $type   "object"
+ * @param ElggWidget $entity Widget
+ * @return void
+ */
+function roles_dashboard_remove_fixed_widgets($event, $type, $entity) {
+
+	if (!$entity instanceof ElggWidget) {
+		return;
+	}
+
+	if (!stristr($_SERVER["HTTP_REFERER"], "/admin/appearance/default_widgets")) {
+		// We only care about widgets that were deleted from default_widgets interface
+		return;
+	}
+	
+	$fixed_widgets = new ElggBatch('elgg_get_entities_from_private_settings', array(
+		'type' => 'object',
+		'subtype' => 'widget',
+		'private_setting_name_value_pairs' => array(
+			'fixed_parent_guid' => $entity->guid,
+		),
+		'limit' => 0,
+	));
+
+	foreach ($fixed_widgets as $fixed_widget) {
+		if ($fixed_widget->guid == $entity->guid) {
+			// https://github.com/ColdTrick/widget_manager/issues/81
+			continue;
+		}
+		$fixed_widget->delete();
 	}
 }

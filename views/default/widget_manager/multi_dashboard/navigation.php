@@ -93,5 +93,23 @@ elgg_load_js('lightbox');
 $dashboard = get_entity($selected_guid);
 
 if ($dashboard instanceof MultiDashboard && $dashboard->roles_context) {
-	elgg_push_context($dashboard->roles_context);
+	$context = $dashboard->roles_context;
+	elgg_push_context($context);
+
+	// update fixed widgets if needed
+	$page_owner = elgg_get_page_owner_entity();
+	if ($page_owner instanceof ElggUser && $page_owner->canEdit()) {
+		// only check things if you are viewing a profile or dashboard page
+		$fixed_ts = elgg_get_plugin_setting($context . "_fixed_ts", "widget_manager");
+		if (empty($fixed_ts)) {
+			$fixed_ts = time();
+			elgg_set_plugin_setting($context . "_fixed_ts", $fixed_ts, "widget_manager");
+		}
+
+		// get the ts of the profile/dashboard you are viewing
+		$user_fixed_ts = elgg_get_plugin_user_setting($context . "_fixed_ts", $page_owner->guid, "widget_manager");
+		if ($user_fixed_ts < $fixed_ts) {
+			widget_manager_update_fixed_widgets($context, $page_owner->guid);
+		}
+	}
 }
