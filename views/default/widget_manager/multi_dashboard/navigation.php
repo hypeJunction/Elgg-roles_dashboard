@@ -81,10 +81,6 @@ elgg_unregister_menu_item('title', 'widgets:add');
 
 echo elgg_view('navigation/tabs', ['id' => 'widget-manager-multi-dashboard-tabs', 'tabs' => $tabs]);
 
-// We need to load lightbox because add_panel view is not rendered and navigation relies on lightbox
-elgg_load_css('lightbox');
-elgg_load_js('lightbox');
-
 // We need to push "role::<role_name>" context so that widgets are retrieved correctly
 // and can be configured via admin interface
 // This is the only place we can do it, before MultiDashboard::getWidgets() is called
