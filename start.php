@@ -24,6 +24,9 @@ function roles_dashboard_init() {
 	elgg_register_event_handler('create', 'relationship', 'roles_dashboard_create_relationship');
 	elgg_register_event_handler('delete', 'relationship', 'roles_dashboard_delete_relationship');
 
+	// Listen to role deleted event
+	elgg_register_event_handler('delete', 'object', 'roles_dashboard_role_deleted');
+
 	// Add selectable roles as widget contexts
 	elgg_register_plugin_hook_handler('get_list', 'default_widgets', 'roles_dashboard_default_widget_contexts');
 
@@ -158,6 +161,40 @@ function roles_dashboard_delete_relationship($event, $type, $relationship) {
 		foreach ($dashboards as $dashboard) {
 			$dashboard->delete();
 		}
+	}
+
+	elgg_set_ignore_access($ia);
+}
+
+/**
+ * Delete dashboard when role object is deleted
+ * The relationship delete is not fired, because the relationships are deleted
+ * in bulk without triggering the event
+ * 
+ * @param string     $event  "delete"
+ * @param string     $type   "object"
+ * @param ElggObject $entity Deleted entity
+ * @return void
+ */
+function roles_dashboard_role_deleted($event, $type, $entity) {
+
+	if (!$entity instanceof ElggRole) {
+		return;
+	}
+
+	$ia = elgg_set_ignore_access(true);
+
+	$dashboards = new ElggBatch('elgg_get_entities_from_relationship', array(
+		'types' => 'object',
+		'subtypes' => MultiDashboard::SUBTYPE,
+		'relationship' => 'dashboard_for',
+		'relationship_guid' => (int) $entity->guid,
+		'inverse_relationship' => true,
+		'limit' => 0,
+	));
+
+	foreach ($dashboards as $dashboard) {
+		$dashboard->delete();
 	}
 
 	elgg_set_ignore_access($ia);
@@ -380,7 +417,7 @@ function roles_dashboard_upgrade() {
 					AND er2.guid_two = er.guid_two)"
 		),
 	));
-				
+
 	$users->setIncrementOffset(false);
 
 	$fixed = $error = 0;
