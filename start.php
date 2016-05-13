@@ -196,7 +196,8 @@ function roles_dashboard_role_deleted($event, $type, $entity) {
 		'inverse_relationship' => true,
 		'limit' => 0,
 	));
-
+	$dashboards->setIncrementOffset(false);
+	
 	foreach ($dashboards as $dashboard) {
 		$dashboard->delete();
 	}
@@ -498,6 +499,8 @@ function roles_dashboard_remove_fixed_widgets($event, $type, $entity) {
 		'limit' => 0,
 	));
 
+	$fixed_widgets->setIncrementOffset(false);
+	
 	foreach ($fixed_widgets as $fixed_widget) {
 		if ($fixed_widget->guid == $entity->guid) {
 			// https://github.com/ColdTrick/widget_manager/issues/81
